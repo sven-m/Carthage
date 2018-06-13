@@ -192,18 +192,9 @@ public final class Project { // swiftlint:disable:this type_body_length
 	/// Reads the project's Cartfile.resolved.
 	public func loadResolvedCartfile() -> SignalProducer<ResolvedCartfile, CarthageError> {
 		return SignalProducer {
-			Result(attempt: {
-				try String(contentsOf: self.resolvedCartfileURL, encoding: .utf8)
-				
-			})
-				.mapError {
-					.readFailed(self.resolvedCartfileURL, $0)
-					
-				}
-				.flatMap {
-					ResolvedCartfile.from(string: $0)
-					
-			}
+			Result(attempt: { try String(contentsOf: self.resolvedCartfileURL, encoding: .utf8) })
+				.mapError { .readFailed(self.resolvedCartfileURL, $0) }
+				.flatMap(ResolvedCartfile.from)
 		}
 	}
 
@@ -246,9 +237,7 @@ public final class Project { // swiftlint:disable:this type_body_length
 					let fetchBinaryDefinition: SignalProducer<Data, CarthageError>
 					if let (url: repositoryURL, revision: revision) = binary.repository {
 						fetchBinaryDefinition = contentsOfFileInRepository(repositoryURL, binary.url.absoluteString, revision: revision)
-							.map {
-								$0.data(using: .utf8)!
-						}
+							.map { $0.data(using: .utf8)! }
 					} else {
 						fetchBinaryDefinition = URLSession.shared.reactive.data(with: URLRequest(url: binary.url))
 							.map { data, _ in data }

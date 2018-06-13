@@ -2,9 +2,6 @@ import Foundation
 
 /// Error parsing a binary-only framework JSON file, used in CarthageError.invalidBinaryJSON.
 public enum BinaryJSONError: Error {
-	/// Invalid UTF8 encoding
-	case invalidEncoding
-	
 	/// Unable to parse the JSON.
 	case invalidJSON(Error)
 
@@ -21,9 +18,6 @@ public enum BinaryJSONError: Error {
 extension BinaryJSONError: CustomStringConvertible {
 	public var description: String {
 		switch self {
-		case .invalidEncoding:
-			return "invalid encoding"
-			
 		case let .invalidJSON(error):
 			return "invalid JSON: \(error)"
 

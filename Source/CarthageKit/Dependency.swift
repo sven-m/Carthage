@@ -155,8 +155,8 @@ extension Dependency: Scannable {
 						case nil:
 							let absoluteURL = URL(fileURLWithPath: url.relativePath, isDirectory: false, relativeTo: nil).standardizedFileURL
 							return .success(self.binary(BinaryURL(url: absoluteURL, resolvedDescription: url.absoluteString)))
-						case .directory(let url)?:
-							let absoluteURL = URL(fileURLWithPath: url.relativePath, isDirectory: false, relativeTo: url).standardizedFileURL
+						case .directory(let directoryURL)?:
+							let absoluteURL = URL(fileURLWithPath: url.relativePath, isDirectory: false, relativeTo: directoryURL).standardizedFileURL
 							return .success(self.binary(BinaryURL(url: absoluteURL, resolvedDescription: url.absoluteString)))
 						case .repository(url: let repositoryURL, revision: let revision)?:
 							return .success(self.binary(BinaryURL(url: url, resolvedDescription: url.absoluteString, repository: (url: repositoryURL, revision: revision))))
