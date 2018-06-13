@@ -21,7 +21,7 @@ public struct Cartfile {
 	}
 
 	/// Attempts to parse Cartfile information from a string.
-	public static func from(string: String) -> Result<Cartfile, CarthageError> {
+	public static func from(string: String, base: BaseURL?) -> Result<Cartfile, CarthageError> {
 		var dependencies: [Dependency: VersionSpecifier] = [:]
 		var duplicates: [Dependency] = []
 		var result: Result<(), CarthageError> = .success(())
@@ -40,7 +40,7 @@ public struct Cartfile {
 				return
 			}
 
-			switch Dependency.from(scanner).fanout(VersionSpecifier.from(scanner)) {
+			switch Dependency.from(scanner, base: base).fanout(VersionSpecifier.from(scanner)) {
 			case let .success((dependency, version)):
 				if case .binary = dependency, case .gitReference = version {
 					result = .failure(
@@ -87,7 +87,9 @@ public struct Cartfile {
 	public static func from(file cartfileURL: URL) -> Result<Cartfile, CarthageError> {
 		return Result(attempt: { try String(contentsOf: cartfileURL, encoding: .utf8) })
 			.mapError { .readFailed(cartfileURL, $0) }
-			.flatMap(Cartfile.from(string:))
+			.flatMap {
+				Cartfile.from(string: $0, base: .directory(cartfileURL.deletingLastPathComponent()))
+			}
 			.mapError { error in
 				guard case let .duplicateDependencies(dupes) = error else { return error }
 
@@ -161,4 +163,9 @@ extension ResolvedCartfile: CustomStringConvertible {
 			.map { "\($0.key) \($0.value)\n" }
 			.joined(separator: "")
 	}
+}
+
+public enum BaseURL {
+	case directory(URL)
+	case repository(url: URL, revision: String)
 }

@@ -9,14 +9,17 @@ public struct BinaryURL: CustomStringConvertible {
 
 	/// A custom description
 	public let resolvedDescription: String
+	
+	public let repository: (url: URL, revision: String)?
 
 	public var description: String {
 		return resolvedDescription
 	}
 
-	init(url: URL, resolvedDescription: String) {
+	init(url: URL, resolvedDescription: String, repository: (url: URL, revision: String)? = nil) {
 		self.url = url
 		self.resolvedDescription = resolvedDescription
+		self.repository = repository
 	}
 }
 
@@ -130,7 +133,7 @@ extension Dependency: Scannable {
 		return from(scanner, base: nil)
 	}
 
-	public static func from(_ scanner: Scanner, base: URL? = nil) -> Result<Dependency, ScannableError> {
+	public static func from(_ scanner: Scanner, base: BaseURL? = nil) -> Result<Dependency, ScannableError> {
 		let parser: (String) -> Result<Dependency, ScannableError>
 
 		if scanner.scanString("github", into: nil) {
@@ -148,8 +151,16 @@ extension Dependency: Scannable {
 					if url.scheme == "https" || url.scheme == "file" {
 						return .success(self.binary(BinaryURL(url: url, resolvedDescription: url.description)))
 					} else if url.scheme == nil {
-						let absoluteURL = URL(fileURLWithPath: url.relativePath, isDirectory: false, relativeTo: base).standardizedFileURL
-						return .success(self.binary(BinaryURL(url: absoluteURL, resolvedDescription: url.absoluteString)))
+						switch base {
+						case nil:
+							let absoluteURL = URL(fileURLWithPath: url.relativePath, isDirectory: false, relativeTo: nil).standardizedFileURL
+							return .success(self.binary(BinaryURL(url: absoluteURL, resolvedDescription: url.absoluteString)))
+						case .directory(let url)?:
+							let absoluteURL = URL(fileURLWithPath: url.relativePath, isDirectory: false, relativeTo: url).standardizedFileURL
+							return .success(self.binary(BinaryURL(url: absoluteURL, resolvedDescription: url.absoluteString)))
+						case .repository(url: let repositoryURL, revision: let revision)?:
+							return .success(self.binary(BinaryURL(url: url, resolvedDescription: url.absoluteString, repository: (url: repositoryURL, revision: revision))))
+						}
 					} else {
 						return .failure(ScannableError(message: "non-https, non-file URL found for dependency type `binary`", currentLine: scanner.currentLine))
 					}

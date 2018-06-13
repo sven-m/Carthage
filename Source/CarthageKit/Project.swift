@@ -192,9 +192,18 @@ public final class Project { // swiftlint:disable:this type_body_length
 	/// Reads the project's Cartfile.resolved.
 	public func loadResolvedCartfile() -> SignalProducer<ResolvedCartfile, CarthageError> {
 		return SignalProducer {
-			Result(attempt: { try String(contentsOf: self.resolvedCartfileURL, encoding: .utf8) })
-				.mapError { .readFailed(self.resolvedCartfileURL, $0) }
-				.flatMap(ResolvedCartfile.from)
+			Result(attempt: {
+				try String(contentsOf: self.resolvedCartfileURL, encoding: .utf8)
+				
+			})
+				.mapError {
+					.readFailed(self.resolvedCartfileURL, $0)
+					
+				}
+				.flatMap {
+					ResolvedCartfile.from(string: $0)
+					
+			}
 		}
 	}
 
@@ -234,9 +243,19 @@ public final class Project { // swiftlint:disable:this type_body_length
 				} else {
 					self._projectEventsObserver.send(value: .downloadingBinaryFrameworkDefinition(.binary(binary), binary.url))
 
-					return URLSession.shared.reactive.data(with: URLRequest(url: binary.url))
-						.mapError { CarthageError.readFailed(binary.url, $0 as NSError) }
-						.attemptMap { data, _ in
+					let fetchBinaryDefinition: SignalProducer<Data, CarthageError>
+					if let (url: repositoryURL, revision: revision) = binary.repository {
+						fetchBinaryDefinition = contentsOfFileInRepository(repositoryURL, binary.url.absoluteString, revision: revision)
+							.map {
+								$0.data(using: .utf8)!
+						}
+					} else {
+						fetchBinaryDefinition = URLSession.shared.reactive.data(with: URLRequest(url: binary.url))
+							.map { data, _ in data }
+							.mapError { CarthageError.readFailed(binary.url, $0 as NSError) }
+					}
+					return fetchBinaryDefinition.mapError { CarthageError.readFailed(binary.url, $0 as NSError) }
+						.attemptMap { data in
 							return BinaryProject.from(jsonData: data).mapError { error in
 								return CarthageError.invalidBinaryJSON(binary.url, error)
 							}
@@ -320,9 +339,10 @@ public final class Project { // swiftlint:disable:this type_body_length
 			let cartfileFetch: SignalProducer<Cartfile, CarthageError> = self.cloneOrFetchDependency(dependency, commitish: revision)
 				.flatMap(.concat) { repositoryURL in
 					return contentsOfFileInRepository(repositoryURL, Constants.Project.cartfilePath, revision: revision)
+						.attemptMap { Cartfile.from(string: $0, base: .repository(url: repositoryURL, revision: revision)) }
 				}
 				.flatMapError { _ in .empty }
-				.attemptMap(Cartfile.from(string:))
+			
 
 			let cartfileSource: SignalProducer<Cartfile, CarthageError>
 			if tryCheckoutDirectory {
